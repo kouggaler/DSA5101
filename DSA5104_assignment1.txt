@@ -1,0 +1,236 @@
+1. Return me the authors who have papers in PVLDB.
+
+select a.name
+from author a
+left join writes w
+on a.aid = w.aid
+left join publication p
+on w.pid = p.pid
+left join journal j
+on p.jid = j.jid
+where j.name = 'PVLDB';
+
+2. Return me the organization H. V. Jagadish is in.
+
+select o.name
+from organization o
+left join author a
+on o.oid = a.oid
+where a.name = 'H. V. Jagadish';
+
+university of michigan
+
+3. Return me the authors who have papers in VLDB conference before 2002 after1995.
+
+select a.name, p.year
+from author a
+left join writes w
+on a.aid = w.aid
+left join publication p
+on w.pid = p.pid
+left join conference c
+on p.cid = c.cid
+where c.name = 'VLDB'
+and p.year between 1996 and 2001;
+
+4. Return me the authors who have cooperated both with "H. V. Jagadish" and"Divesh Srivastava".
+
+select distinct a.name
+from author a
+left join writes w
+on a.aid = w.aid
+left join publication p
+on w.pid = p.pid
+where p.pid in (select sp.pid
+				from publication sp
+                right join writes sw
+                on sp.pid = sw.pid
+                right join author sa
+                on sw.aid = sa.aid
+                where sa.name = 'H. V. Jagadish' OR
+                sa.name = "Divesh Srivastava")
+and (a.name <> 'H. V. Jagadish' and
+a.name <> 'Divesh Srivastava')
+order by a.name;
+
+5. Return me the authors who have more papers on VLDB than ICDE.
+
+with ICDE_CTE(name,count_ICDE) as (
+select a.name, count(distinct p.pid) as count_ICDE
+from author a
+join writes w
+on a.aid = w.aid
+join publication p
+on w.pid = p.pid
+join conference c
+on p.cid = c.cid
+where c.name = 'ICDE'
+group by a.name),
+VLDB_CTE(name,count_VLDB) as (select a.name, count(distinct p.pid) as count_ICDE
+from author a
+join writes w
+on a.aid = w.aid
+join publication p
+on w.pid = p.pid
+join conference c
+on p.cid = c.cid
+where c.name = 'VLDB'
+group by a.name)
+
+Select t1.name, t1.count_VLDB, t2.count_ICDE
+from VLDB_CTE t1
+left join ICDE_CTE t2
+on t1.name = t2.name
+where t1.count_VLDB > t2.count_ICDE
+or t2.count_ICDE is null
+
+6. Return me the authors who have cited papers of H. V. Jagadish.
+
+select a.name
+from author a
+join writes w
+on a.aid = w.aid
+join publication p
+on w.pid = p.pid
+join cite c
+on p.pid = c.citing
+where c.cited in (Select c.cited 
+				from cite c
+                join publication p
+                on c.cited = p.pid
+                join writes w
+                on p.pid = w.pid
+                join author a
+                on w.aid = a.aid
+                where a.name = 'H. V. Jagadish')
+
+
+7. Return me all the papers, which contain the keyword "Natural Language".
+
+select p.title 
+from publication p
+join publication_keyword pk
+on p.pid = pk.pid
+join keyword k
+on pk.kid = k.kid
+where k.keyword = "Natural Language"
+
+8. Return me all the researchers in database area in University of Michigan.
+
+select a.name, d.name 
+from author a
+join organization o
+on a.oid = o.oid
+join domain_author da
+on a.aid = da.aid
+join domain d
+on da.did = d.did
+where o.name = 'University of Michigan'
+and d.name like '%database%'
+
+
+9. Return me the number of papers written by H. V. Jagadish, Yunyao Li, and Cong Yu
+
+select a.name, count(p.pid) 
+from publication p
+join writes w
+on p.pid = w.pid
+join author a
+on w.aid = a.aid
+where a.name in ('H. V. Jagadish', 'Yunyao Li', 'Cong Yu')
+group by a.name
+
+
+10. Return me the number of papers written by H. V. Jagadish in each year.
+
+select p.year , count(p.pid) as number_of_papers
+from publication p
+join writes w
+on p.pid = w.pid
+join author a
+on w.aid = a.aid
+where a.name in ('H. V. Jagadish')
+group by p.year
+order by p.year
+
+
+
+11. Return me the number of citations of "Making database systems usable" in each year.
+
+select p.year, count(c.citing) as number_of_citations
+from cite c
+join publication p
+on c.citing = p.pid
+where c.cited in (select c.cited
+	     from cite c
+                join publication p
+                on c.cited = p.pid
+                where p.title = "Making database systems usable")
+group by p.year
+order by p.year
+
+12. Return me the author who has the most number of papers in the VLDBconference
+
+with count_paper_author(auth_name,counts) as (
+select a.name, count(p.pid)
+from author a
+join writes w
+on a.aid = w.aid
+join publication p 
+on w.pid = p.pid
+join conference c
+on p.cid = c.cid
+where c.name = "VLDB"
+group by a.name)
+select auth_name, counts
+from count_paper_author
+where counts = (select max(counts) from count_paper_author)
+
+
+
+13. Return me the conferences, which have more than 60 papers containing keyword"Relational Database".
+
+with conference_count_paper (conf_name, count) as (
+select c.name, count(distinct p.pid)
+from conference c
+join publication p
+on c.cid = p.cid
+join publication_keyword pk
+on p.pid = pk.pid
+join keyword k
+on pk.kid = k.kid
+where k.keyword like "%Relational Database%"
+group by c.name)
+select conf_name 
+from conference_count_paper
+where count > 60
+
+
+14. Return me the number of papers published on PVLDB each year after 2000
+
+select p.year, count(p.pid) as number_of_papers
+from publication p
+join journal j
+on p.jid = p.jid
+where p.year > 2000
+and j.name = 'PVLDB'
+group by p.year
+order by p.year ASC
+
+
+15. Return me the paper after 2000 in VLDB conference with the most citations.
+
+with paper_count(paper, count) as (
+select p.title, count(cite.citing)
+from publication p
+join conference c
+on p.cid = c.cid
+join cite 
+on p.pid = cite.cited
+where p.year > 2000 
+and c.name = 'VLDB'
+group by cite.cited)
+select paper 
+from paper_count
+where count = (select max(count) from paper_count)
+
